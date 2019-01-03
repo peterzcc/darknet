@@ -5,6 +5,7 @@ from pydarknet import darknet_libwrapper as dn
 from scipy.misc import imread
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
 class DetectedObject(object):
     def __init__(self, name, prob, x, y, w, h):
@@ -74,7 +75,7 @@ meta = dn.get_metadata("cfg/coco.data")
 # print('Scipy:\n', result)
 
 # OpenCV
-im_ori = cv2.imread("data/kite.jpg")
+im_ori = cv2.imread("images/test.jpg")
 im = array_to_image(im_ori)
 dn.rgbgr_image(im)
 result = _detector(net, meta, im)
@@ -85,9 +86,17 @@ for det_prediction in result:
     npround = lambda x: tuple(np.round(x).astype(int))
     up_left = npround((x-w/2, y-h/2))
     down_right = npround((x + w/2, y + h/2))
-    cv2.rectangle(im_ori, up_left, down_right, (0, 255, 0))
-cv2.imshow("detection", im_ori)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+    if name == b"person":
+        color = (0, 255, 0)
+    else:
+        color = (255, 0, 0)
+    cv2.rectangle(im_ori, up_left, down_right, color, thickness=3)
+cv2.putText(im_ori, "Num={}".format(len(result)),
+		(int(im_ori.shape[1]/2), 120), cv2.FONT_HERSHEY_SIMPLEX, 3.0, (0, 255, 0), 5)
+# cv2.imshow("detection", im_ori)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
+plt.imshow(cv2.cvtColor(im_ori, cv2.COLOR_BGR2RGB))
+plt.show()
 pass
 
