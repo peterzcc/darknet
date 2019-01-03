@@ -74,7 +74,7 @@ def generate_patches_from_image(im_ori, patch_width=608,
 
 
 def get_detection_tuple(this_detection, meta):
-    probs = np.array([this_detection.prob[i] for i in range(meta.classes) if this_detection.prob[i] > 0])
+    probs = np.array([this_detection.prob[i] for i in range(meta.classes)])
     pred_class = np.argmax(probs)
     b = this_detection.bbox
     this_result = (pred_class, this_detection.prob[pred_class], (b.x, b.y, b.w, b.h))
@@ -91,7 +91,7 @@ def _detector(net, meta, image, thresh=.5, hier=.5, nms=.45):
         dn.do_nms_sort(dets, num_det, meta.classes, nms)
 
     res = []
-    # for j in range(num):
+    # for j in range(num_det):
     #     for i in range(meta.classes):
     #         if dets[j].prob[i] > 0:
     #             b = dets[j].bbox
@@ -105,8 +105,38 @@ def _detector(net, meta, image, thresh=.5, hier=.5, nms=.45):
     return res
 
 
+def count_people_and_draw_detections(im_ori, patch_boxes, net, meta, PERSON_LABEL=0):
+    num_pred = 0
+    im_proc = im_ori.copy()
+    results = []
+    for i, box in enumerate(patch_boxes):
 
+        this_patch = imcrop(im_ori, box)
+        im_dn = array_to_image(this_patch)
+        dn.rgbgr_image(im_dn)
+        result = _detector(net, meta, im_dn)
+        results.append(result)
+        # print('Results:\n', result)
 
+    for i, box in enumerate(patch_boxes):
+        coord_offset = box[0:2]
+        result = results[i]
+        for det_prediction in result:
+            label, prob, box = det_prediction
+            x, y, w, h = box
+            npround = lambda x: tuple((np.round(x) + coord_offset).astype(int))
+            up_left = npround((x - w / 2, y - h / 2))
+            down_right = npround((x + w / 2, y + h / 2))
+            if label == PERSON_LABEL:
+                color = (0, 255, 0)
+                num_pred += 1
+            else:
+                color = (255, 0, 0)
+            cv2.rectangle(im_proc, up_left, down_right, color, thickness=2)
+    cv2.putText(im_proc, "Num={}".format(num_pred),
+                (int(im_proc.shape[1] / 2), 120),
+                cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 255, 0), 5)
+    return im_proc, num_pred
 
 def main():
     # Darknet
@@ -118,43 +148,23 @@ def main():
     for i in range(meta.classes):
         if meta.names[i] == b"person":
             PERSON_LABEL = i
+    patch_boxes = None
 
     # OpenCV
     im_ori = cv2.imread("images/test.jpg")
     im_ori = resize_image(im_ori)
+    if patch_boxes is None:
+        patch_boxes = generate_patches_from_image(im_ori)
 
-    patch_boxes = generate_patches_from_image(im_ori)
-    num_pred = 0
-    im_proc = im_ori.copy()
-    for box in patch_boxes:
-        coord_offset = box[0:2]
-        this_patch = imcrop(im_ori,box)
-        im_dn = array_to_image(this_patch)
-        dn.rgbgr_image(im_dn)
-        result = _detector(net, meta, im_dn)
-        # print('Results:\n', result)
-        num_pred += len(result)
-        for det_prediction in result:
-            label, prob, box = det_prediction
-            x, y, w, h = box
-            npround = lambda x: tuple((np.round(x)+coord_offset).astype(int))
-            up_left = npround((x-w/2, y-h/2))
-            down_right = npround((x + w/2, y + h/2))
-            if label == PERSON_LABEL:
-                color = (0, 255, 0)
-            else:
-                color = (255, 0, 0)
-            cv2.rectangle(im_proc, up_left, down_right, color, thickness=2)
-    cv2.putText(im_proc, "Num={}".format(num_pred),
-                (int(im_proc.shape[1]/2), 120),
-                cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 255, 0), 5)
+    im_proc, num_pred = \
+        count_people_and_draw_detections(im_ori, patch_boxes, net, meta, PERSON_LABEL)
 
     should_show_image = False
     if should_show_image:
         plt.imshow(cv2.cvtColor(im_proc, cv2.COLOR_BGR2RGB))
         plt.show()
     else:
-        cv2.imwrite("outputs/output.jpg",im_proc)
+        cv2.imwrite("outputs/output.jpg", im_proc)
 
 
 if __name__ == '__main__':
