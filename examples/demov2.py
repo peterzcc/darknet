@@ -61,6 +61,7 @@ def _detector(net, meta, image, thresh=.5, hier=.5, nms=.45):
 
 # Darknet
 # net = load_network("cfg/yolov3.cfg", "models/yolov3.weights", 0)
+dn.cuda_set_device(0)
 net = dn.load_network("cfg/yolov3-tiny.cfg", "models/yolov3-tiny.weights", 0)
 meta = dn.get_metadata("cfg/coco.data")
 
@@ -92,10 +93,12 @@ for det_prediction in result:
         color = (255, 0, 0)
     cv2.rectangle(im_ori, up_left, down_right, color, thickness=3)
 cv2.putText(im_ori, "Num={}".format(len(result)),
-		(int(im_ori.shape[1]/2), 120), cv2.FONT_HERSHEY_SIMPLEX, 3.0, (0, 255, 0), 5)
+            (int(im_ori.shape[1]/2), 120), cv2.FONT_HERSHEY_SIMPLEX, 3.0, (0, 255, 0), 5)
+
 # cv2.imshow("detection", im_ori)
 # cv2.waitKey(0)
 # cv2.destroyAllWindows()
+
 plt.imshow(cv2.cvtColor(im_ori, cv2.COLOR_BGR2RGB))
 plt.show()
 pass
