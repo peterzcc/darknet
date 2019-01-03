@@ -1,9 +1,26 @@
 """Detector functions with different imread methods"""
 
 import ctypes
-from darknet_libwrapper import *
+from pydarknet import darknet_libwrapper as dn
 from scipy.misc import imread
 import cv2
+import numpy as np
+
+class DetectedObject(object):
+    def __init__(self, name, prob, x, y, w, h):
+        try:
+            name = name.decode()
+        except AttributeError:
+            pass
+        self.name = name
+        self.prob = prob
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+
+    def __str__(self):
+        return str(self.__class__) + ": " + str(self.__dict__)
 
 def array_to_image(arr):
     arr = arr.transpose(2,0,1)
@@ -11,19 +28,24 @@ def array_to_image(arr):
     h = arr.shape[1]
     w = arr.shape[2]
     arr = (arr/255.0).flatten()
-    data = c_array(ctypes.c_float, arr)
-    im = IMAGE(w,h,c,data)
+    data = dn.c_array(ctypes.c_float, arr)
+    im = dn.IMAGE(w,h,c,data)
     return im
 
+
+def vert_from_box(x,y,w,h):
+    return [(x, y), (x+w,y), (x+w, y+h), (x,y+h)]
+
+
 def _detector(net, meta, image, thresh=.5, hier=.5, nms=.45):
-    cuda_set_device(0)
+    dn.cuda_set_device(0)
     num = ctypes.c_int(0)
     num_ptr = ctypes.pointer(num)
-    network_predict_image(net, image)
-    dets = get_network_boxes(net, image.w, image.h, thresh, hier, None, 0, num_ptr)
+    dn.network_predict_image(net, image)
+    dets = dn.get_network_boxes(net, image.w, image.h, thresh, hier, None, 0, num_ptr)
     num = num_ptr[0]
     if (nms):
-         do_nms_sort(dets, num, meta.classes, nms)
+        dn.do_nms_sort(dets, num, meta.classes, nms)
 
     res = []
     for j in range(num):
@@ -33,12 +55,13 @@ def _detector(net, meta, image, thresh=.5, hier=.5, nms=.45):
                 res.append((meta.names[i], dets[j].prob[i], (b.x, b.y, b.w, b.h)))
     # res = sorted(res, key=lambda x: -x[1])
     # free_image(im)
-    free_detections(dets, num)
+    dn.free_detections(dets, num)
     return res
 
 # Darknet
-net = load_network("cfg/yolov3.cfg", "models/yolov3.weights", 0)
-meta = get_metadata("cfg/coco.data")
+# net = load_network("cfg/yolov3.cfg", "models/yolov3.weights", 0)
+net = dn.load_network("cfg/yolov3-tiny.cfg", "models/yolov3-tiny.weights", 0)
+meta = dn.get_metadata("cfg/coco.data")
 
 # im = load_image_color('data/dog.jpg', 0, 0)
 # result = _detector(net, meta, im)
@@ -51,8 +74,20 @@ meta = get_metadata("cfg/coco.data")
 # print('Scipy:\n', result)
 
 # OpenCV
-arr = cv2.imread("data/eagle.jpg")
-im = array_to_image(arr)
-rgbgr_image(im)
+im_ori = cv2.imread("data/kite.jpg")
+im = array_to_image(im_ori)
+dn.rgbgr_image(im)
 result = _detector(net, meta, im)
 print('OpenCV:\n', result)
+for det_prediction in result:
+    name, prob, box = det_prediction
+    x, y, w, h = box
+    npround = lambda x: tuple(np.round(x).astype(int))
+    up_left = npround((x-w/2, y-h/2))
+    down_right = npround((x + w/2, y + h/2))
+    cv2.rectangle(im_ori, up_left, down_right, (0, 255, 0))
+cv2.imshow("detection", im_ori)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+pass
+
