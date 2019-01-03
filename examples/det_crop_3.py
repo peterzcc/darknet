@@ -6,7 +6,8 @@ from scipy.misc import imread
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-
+import time
+import argparse
 
 class DetectedObject(object):
     def __init__(self, name, prob, x, y, w, h):
@@ -109,14 +110,16 @@ def count_people_and_draw_detections(im_ori, patch_boxes, net, meta, PERSON_LABE
     num_pred = 0
     im_proc = im_ori.copy()
     results = []
+    start_time = time.time()
     for i, box in enumerate(patch_boxes):
-
         this_patch = imcrop(im_ori, box)
         im_dn = array_to_image(this_patch)
         dn.rgbgr_image(im_dn)
         result = _detector(net, meta, im_dn)
         results.append(result)
         # print('Results:\n', result)
+    compute_time = time.time() - start_time
+    print("Computation time: {}".format(compute_time))
 
     for i, box in enumerate(patch_boxes):
         coord_offset = box[0:2]
@@ -140,9 +143,12 @@ def count_people_and_draw_detections(im_ori, patch_boxes, net, meta, PERSON_LABE
 
 def main():
     # Darknet
+    parser = argparse.ArgumentParser(description='people counting')
+    parser.add_argument('--model', type=str, default="yolov3-tiny", help='model name')
+    args = parser.parse_args()
     # net = dn.load_network("cfg/yolov3.cfg", "models/yolov3.weights", 0)
     dn.cuda_set_device(0)
-    net = dn.load_network("cfg/yolov3-tiny.cfg", "models/yolov3-tiny.weights", 0)
+    net = dn.load_network("cfg/{}.cfg".format(args.model), "models/{}.weights".format(args.model), 0)
     meta = dn.get_metadata("cfg/coco.data")
     PERSON_LABEL = None
     for i in range(meta.classes):
