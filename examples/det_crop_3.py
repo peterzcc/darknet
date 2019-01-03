@@ -57,28 +57,6 @@ def pad_img_to_fit_bbox(img, x1, x2, y1, y2):
     return img, x1, x2, y1, y2
 
 
-def _detector(net, meta, image, thresh=.5, hier=.5, nms=.45):
-    # dn.cuda_set_device(0)
-    num = ctypes.c_int(0)
-    num_ptr = ctypes.pointer(num)
-    dn.network_predict_image(net, image)
-    dets = dn.get_network_boxes(net, image.w, image.h, thresh, hier, None, 0, num_ptr)
-    num = num_ptr[0]
-    if (nms):
-        dn.do_nms_sort(dets, num, meta.classes, nms)
-
-    res = []
-    for j in range(num):
-        for i in range(meta.classes):
-            if dets[j].prob[i] > 0:
-                b = dets[j].bbox
-                res.append((meta.names[i], dets[j].prob[i], (b.x, b.y, b.w, b.h)))
-    # res = sorted(res, key=lambda x: -x[1])
-    # free_image(im)
-    dn.free_detections(dets, num)
-    return res
-
-
 def resize_image(img, target_width=1920):
     im = cv2.resize(img, dsize=(target_width, int(img.shape[0] * target_width / img.shape[1])),
                     interpolation=cv2.INTER_NEAREST)
@@ -95,12 +73,51 @@ def generate_patches_from_image(im_ori, patch_width=608,
     return patch_boxes
 
 
+def get_detection_tuple(this_detection, meta):
+    probs = np.array([this_detection.prob[i] for i in range(meta.classes) if this_detection.prob[i] > 0])
+    pred_class = np.argmax(probs)
+    b = this_detection.bbox
+    this_result = (pred_class, this_detection.prob[pred_class], (b.x, b.y, b.w, b.h))
+    return this_result
+
+def _detector(net, meta, image, thresh=.5, hier=.5, nms=.45):
+    # dn.cuda_set_device(0)
+    num_det = ctypes.c_int(0)
+    num_ptr = ctypes.pointer(num_det)
+    dn.network_predict_image(net, image)
+    dets = dn.get_network_boxes(net, image.w, image.h, thresh, hier, None, 0, num_ptr)
+    num_det = num_ptr[0]
+    if (nms):
+        dn.do_nms_sort(dets, num_det, meta.classes, nms)
+
+    res = []
+    # for j in range(num):
+    #     for i in range(meta.classes):
+    #         if dets[j].prob[i] > 0:
+    #             b = dets[j].bbox
+    #             res.append((meta.names[i], dets[j].prob[i], (b.x, b.y, b.w, b.h)))
+
+    res = list(map(lambda i: get_detection_tuple(dets[i], meta), range(num_det)))
+
+    # res = sorted(res, key=lambda x: -x[1])
+    # free_image(im)
+    dn.free_detections(dets, num_det)
+    return res
+
+
+
+
+
 def main():
     # Darknet
-    net = load_network("cfg/yolov3.cfg", "models/yolov3.weights", 0)
+    # net = dn.load_network("cfg/yolov3.cfg", "models/yolov3.weights", 0)
     dn.cuda_set_device(0)
-    # net = dn.load_network("cfg/yolov3-tiny.cfg", "models/yolov3-tiny.weights", 0)
+    net = dn.load_network("cfg/yolov3-tiny.cfg", "models/yolov3-tiny.weights", 0)
     meta = dn.get_metadata("cfg/coco.data")
+    PERSON_LABEL = None
+    for i in range(meta.classes):
+        if meta.names[i] == b"person":
+            PERSON_LABEL = i
 
     # OpenCV
     im_ori = cv2.imread("images/test.jpg")
@@ -115,29 +132,29 @@ def main():
         im_dn = array_to_image(this_patch)
         dn.rgbgr_image(im_dn)
         result = _detector(net, meta, im_dn)
-        print('OpenCV:\n', result)
+        # print('Results:\n', result)
         num_pred += len(result)
         for det_prediction in result:
-            name, prob, box = det_prediction
+            label, prob, box = det_prediction
             x, y, w, h = box
             npround = lambda x: tuple((np.round(x)+coord_offset).astype(int))
             up_left = npround((x-w/2, y-h/2))
             down_right = npround((x + w/2, y + h/2))
-            if name == b"person":
+            if label == PERSON_LABEL:
                 color = (0, 255, 0)
             else:
                 color = (255, 0, 0)
-            cv2.rectangle(im_proc, up_left, down_right, color, thickness=3)
+            cv2.rectangle(im_proc, up_left, down_right, color, thickness=2)
     cv2.putText(im_proc, "Num={}".format(num_pred),
                 (int(im_proc.shape[1]/2), 120),
-                cv2.FONT_HERSHEY_SIMPLEX, 3.0, (0, 255, 0), 5)
+                cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 255, 0), 5)
 
     should_show_image = False
     if should_show_image:
         plt.imshow(cv2.cvtColor(im_proc, cv2.COLOR_BGR2RGB))
         plt.show()
     else:
-        cv2.imwrite("images/output.jpg",im_proc)
+        cv2.imwrite("outputs/output.jpg",im_proc)
 
 
 if __name__ == '__main__':
