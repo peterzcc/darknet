@@ -158,6 +158,8 @@ def run_test_image(net, meta, patch_boxes, show=0, PERSON_LABEL=0):
         cv2.imwrite("outputs/output.jpg", im_proc)
 
 
+
+
 def main():
     # Darknet
     parser = argparse.ArgumentParser(description='people counting')
@@ -191,14 +193,22 @@ def main():
         assert not os.path.isdir(out_frames_path)
         os.mkdir(out_frames_path)
         in_frames_path = os.path.join(datadir, video_name)
-        for frame_name in os.listdir(in_frames_path):
+        det_results = None
+        for i, frame_name in enumerate(os.listdir(in_frames_path)):
             in_img_path = os.path.join(in_frames_path, frame_name)
-            im_ori = cv2.imread(in_img_path)
             out_img_path = os.path.join(out_frames_path, frame_name)
-            print("output: {}".format(out_img_path))
-            cv2.imwrite(out_img_path, im_ori)
 
-    # run_test_image(net, meta, patch_boxes, args.show, PERSON_LABEL)
+            im_ori = cv2.imread(in_img_path)
+            im_ori = resize_image(im_ori)
+            if patch_boxes is None:
+                patch_boxes = generate_patches_from_image(
+                    im_ori,
+                    default_offset=np.array([-45, 120], dtype=np.int))
+            if det_results is None or i % args.fskip == 0:
+                det_results = detect_patches(im_ori, patch_boxes, net, meta)
+            im_proc, num_pred = draw_detections(im_ori, det_results, patch_boxes, PERSON_LABEL)
+            print("outputing: {}".format(out_img_path))
+            cv2.imwrite(out_img_path, im_proc)
 
 
 if __name__ == '__main__':
