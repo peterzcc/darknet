@@ -74,13 +74,6 @@ def generate_patches_from_image(im_ori, patch_width=608,
     return patch_boxes
 
 
-# def get_detection_tuple(this_detection, meta):
-#     probs = np.array([this_detection.prob[i] for i in range(meta.classes)])
-#     pred_class = np.argmax(probs)
-#     b = this_detection.bbox
-#     this_result = (pred_class, this_detection.prob[pred_class], (b.x, b.y, b.w, b.h))
-#     return this_result
-
 def _detector(net, meta, image, thresh=.5, hier=.5, nms=.45):
     # dn.cuda_set_device(0)
     num_det = ctypes.c_int(0)
