@@ -65,8 +65,9 @@ def resize_image(img, target_width=1920):
 
 
 def generate_patches_from_image(im_ori, patch_width=608,
-                                offsets=np.array(((-1,0), (0,0), (1,0)))):
-    center = np.array([im_ori.shape[1]/2, im_ori.shape[0]/2], dtype=np.int)
+                                offsets=np.array(((-1,0), (0,0), (1,0))),
+                                default_offset=np.array([0,0],dtype=np.int)):
+    center = np.array([im_ori.shape[1]/2, im_ori.shape[0]/2], dtype=np.int)+default_offset
     pw = patch_width
     real_offsets = np.tile(offsets * pw, (1,2))
     center_box = np.concatenate([center-pw/2, center+pw/2]).astype(np.int)
@@ -114,6 +115,7 @@ def detect_patches_and_draw(im_ori, patch_boxes, net, meta, PERSON_LABEL=0):
 
     for i, box in enumerate(patch_boxes):
         coord_offset = box[0:2]
+        cv2.rectangle(im_proc, tuple(box[0:2]), tuple(box[2:4]), (0, 0, 255), thickness=2)
         result = results[i]
         for det_prediction in result:
             label, prob, box = det_prediction
@@ -137,8 +139,8 @@ def main():
     # Darknet
     parser = argparse.ArgumentParser(description='people counting')
     parser.add_argument('--model', type=str, default="yolov3-tiny", help='model name')
+    parser.add_argument('--show', type=int, default=0, help='whether to show image')
     args = parser.parse_args()
-    # net = dn.load_network("cfg/yolov3.cfg", "models/yolov3.weights", 0)
     dn.cuda_set_device(0)
     net = dn.load_network("cfg/{}.cfg".format(args.model), "models/{}.weights".format(args.model), 0)
     meta = dn.get_metadata("cfg/coco.data")
@@ -152,12 +154,14 @@ def main():
     im_ori = cv2.imread("images/test.jpg")
     im_ori = resize_image(im_ori)
     if patch_boxes is None:
-        patch_boxes = generate_patches_from_image(im_ori)
+        patch_boxes = generate_patches_from_image(
+            im_ori,
+            default_offset=np.array([-45, 120], dtype=np.int))
 
     im_proc, num_pred = \
         detect_patches_and_draw(im_ori, patch_boxes, net, meta, PERSON_LABEL)
 
-    should_show_image = False
+    should_show_image = args.show == 1
     if should_show_image:
         plt.imshow(cv2.cvtColor(im_proc, cv2.COLOR_BGR2RGB))
         plt.show()
