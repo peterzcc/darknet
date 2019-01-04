@@ -97,15 +97,8 @@ def _detector(net, meta, image, thresh=.5, hier=.5, nms=.45):
         preds = [(i, dj.prob[i],(dj.bbox.x,dj.bbox.y,dj.bbox.w,dj.bbox.h))
                  for i in range(meta.classes) if dj.prob[i] > 0]
         res.extend(preds)
-        # for i in range(meta.classes):
-        #     if dets[j].prob[i] > 0:
-        #         b = dets[j].bbox
-        #         res.append((i, dets[j].prob[i], (b.x, b.y, b.w, b.h)))
-
-    # res = list(map(lambda i: get_detection_tuple(dets[i], meta), range(num_det)))
 
     # res = sorted(res, key=lambda x: -x[1])
-    # free_image(im)
     dn.free_detections(dets, num_det)
     return res
 
@@ -124,7 +117,7 @@ def detect_patches_and_draw(im_ori, patch_boxes, net, meta, PERSON_LABEL=0):
         results.append(result)
         # print('Results:\n', result)
     compute_time = time.time() - start_time
-    # print("Computation time: {}".format(compute_time))
+    print("Computation time: {}".format(compute_time))
 
     for i, box in enumerate(patch_boxes):
         coord_offset = box[0:2]
