@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import argparse
+import os
 
 class DetectedObject(object):
     def __init__(self, name, prob, x, y, w, h):
@@ -96,27 +97,12 @@ def _detector(net, meta, image, thresh=.5, hier=.5, nms=.45):
     dn.free_detections(dets, num_det)
     return res
 
-
-def detect_patches_and_draw(im_ori, patch_boxes, net, meta, PERSON_LABEL=0):
-    num_pred = 0
+def draw_detections(im_ori, results, patch_boxes, PERSON_LABEL=0):
     im_proc = im_ori.copy()
-    results = []
-    start_time = time.time()
-    for i, box in enumerate(patch_boxes):
-        this_patch = imcrop(im_ori, box)
-        im_dn = array_to_image(this_patch)
-        dn.rgbgr_image(im_dn)
-        result = _detector(net, meta, im_dn)
-        # dn.free_image(im_dn)
-        results.append(result)
-        # print('Results:\n', result)
-    compute_time = time.time() - start_time
-    print("Computation time: {}".format(compute_time))
-
-    for i, box in enumerate(patch_boxes):
+    num_pred = 0
+    for result, box in zip(results, patch_boxes):
         coord_offset = box[0:2]
         cv2.rectangle(im_proc, tuple(box[0:2]), tuple(box[2:4]), (0, 0, 255), thickness=2)
-        result = results[i]
         for det_prediction in result:
             label, prob, box = det_prediction
             x, y, w, h = box
@@ -134,12 +120,54 @@ def detect_patches_and_draw(im_ori, patch_boxes, net, meta, PERSON_LABEL=0):
                 cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 255, 0), 5)
     return im_proc, num_pred
 
+def detect_patches(im_ori, patch_boxes, net, meta):
+
+
+    results = []
+    start_time = time.time()
+    for i, box in enumerate(patch_boxes):
+        this_patch = imcrop(im_ori, box)
+        im_dn = array_to_image(this_patch)
+        dn.rgbgr_image(im_dn)
+        result = _detector(net, meta, im_dn)
+        # dn.free_image(im_dn)
+        results.append(result)
+        # print('Results:\n', result)
+    compute_time = time.time() - start_time
+    # print("Computation time: {}".format(compute_time))
+
+    return results
+
+
+def run_test_image(net, meta, patch_boxes, show=0, PERSON_LABEL=0):
+    im_ori = cv2.imread("images/test.jpg")
+    im_ori = resize_image(im_ori)
+    if patch_boxes is None:
+        patch_boxes = generate_patches_from_image(
+            im_ori,
+            default_offset=np.array([-45, 120], dtype=np.int))
+
+    det_results = detect_patches(im_ori, patch_boxes, net, meta)
+    im_proc, num_pred = draw_detections(im_ori, det_results, patch_boxes, PERSON_LABEL)
+
+    should_show_image = show == 1
+    if should_show_image:
+        plt.imshow(cv2.cvtColor(im_proc, cv2.COLOR_BGR2RGB))
+        plt.show()
+    else:
+        cv2.imwrite("outputs/output.jpg", im_proc)
+
 
 def main():
     # Darknet
     parser = argparse.ArgumentParser(description='people counting')
     parser.add_argument('--model', type=str, default="yolov3-tiny", help='model name')
     parser.add_argument('--show', type=int, default=0, help='whether to show image')
+    parser.add_argument('--fstart', type=int, default=0, help='')
+    parser.add_argument('--fend', type=int, default=-1, help='e')
+    parser.add_argument('--fskip', type=int, default=1, help='')
+    parser.add_argument('--datadir', type=str, default="frames_southgate", help='')
+    parser.add_argument('--outputdir', type=str, default="frames_output", help='')
     args = parser.parse_args()
     dn.cuda_set_device(0)
     net = dn.load_network("cfg/{}.cfg".format(args.model), "models/{}.weights".format(args.model), 0)
@@ -150,24 +178,17 @@ def main():
             PERSON_LABEL = i
     patch_boxes = None
 
-    # OpenCV
-    im_ori = cv2.imread("images/test.jpg")
-    im_ori = resize_image(im_ori)
-    if patch_boxes is None:
-        patch_boxes = generate_patches_from_image(
-            im_ori,
-            # default_offset=np.array([0, 0], dtype=np.int))
-            default_offset=np.array([-45, 120], dtype=np.int))
+    outputdir = args.outputdir
+    if os.path.exists(outputdir):
+        os.rmdir(outputdir)
+    os.mkdir(outputdir)
 
-    im_proc, num_pred = \
-        detect_patches_and_draw(im_ori, patch_boxes, net, meta, PERSON_LABEL)
+    datadir = args.datadir
+    assert os.path.isdir(datadir)
+    for video_name in os.listdir(datadir):
+        print("Processing video: {}".format(video_name))
 
-    should_show_image = args.show == 1
-    if should_show_image:
-        plt.imshow(cv2.cvtColor(im_proc, cv2.COLOR_BGR2RGB))
-        plt.show()
-    else:
-        cv2.imwrite("outputs/output.jpg", im_proc)
+    # run_test_image(net, meta, patch_boxes, args.show, PERSON_LABEL)
 
 
 if __name__ == '__main__':
