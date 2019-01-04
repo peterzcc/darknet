@@ -187,6 +187,16 @@ def main():
     assert os.path.isdir(datadir)
     for video_name in os.listdir(datadir):
         print("Processing video: {}".format(video_name))
+        out_frames_path = os.path.join(outputdir, video_name)
+        assert not os.path.isdir(out_frames_path)
+        os.mkdir(out_frames_path)
+        in_frames_path = os.path.join(datadir, video_name)
+        for frame_name in os.listdir(in_frames_path):
+            in_img_path = os.path.join(in_frames_path, frame_name)
+            im_ori = cv2.imread(in_img_path)
+            out_img_path = os.path.join(out_frames_path, frame_name)
+            print("output: {}".format(out_img_path))
+            cv2.imwrite(out_img_path, im_ori)
 
     # run_test_image(net, meta, patch_boxes, args.show, PERSON_LABEL)
 
