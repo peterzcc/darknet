@@ -93,10 +93,14 @@ def _detector(net, meta, image, thresh=.5, hier=.5, nms=.45):
 
     res = []
     for j in range(num_det):
-        for i in range(meta.classes):
-            if dets[j].prob[i] > 0:
-                b = dets[j].bbox
-                res.append((i, dets[j].prob[i], (b.x, b.y, b.w, b.h)))
+        dj = dets[j]
+        preds = [(i, dj.prob[i],(dj.bbox.x,dj.bbox.y,dj.bbox.w,dj.bbox.h))
+                 for i in range(meta.classes) if dj.prob[i] > 0]
+        res.extend(preds)
+        # for i in range(meta.classes):
+        #     if dets[j].prob[i] > 0:
+        #         b = dets[j].bbox
+        #         res.append((i, dets[j].prob[i], (b.x, b.y, b.w, b.h)))
 
     # res = list(map(lambda i: get_detection_tuple(dets[i], meta), range(num_det)))
 
@@ -106,7 +110,7 @@ def _detector(net, meta, image, thresh=.5, hier=.5, nms=.45):
     return res
 
 
-def count_people_and_draw_detections(im_ori, patch_boxes, net, meta, PERSON_LABEL=0):
+def detect_patches_and_draw(im_ori, patch_boxes, net, meta, PERSON_LABEL=0):
     num_pred = 0
     im_proc = im_ori.copy()
     results = []
@@ -116,10 +120,11 @@ def count_people_and_draw_detections(im_ori, patch_boxes, net, meta, PERSON_LABE
         im_dn = array_to_image(this_patch)
         dn.rgbgr_image(im_dn)
         result = _detector(net, meta, im_dn)
+        # dn.free_image(im_dn)
         results.append(result)
         # print('Results:\n', result)
     compute_time = time.time() - start_time
-    print("Computation time: {}".format(compute_time))
+    # print("Computation time: {}".format(compute_time))
 
     for i, box in enumerate(patch_boxes):
         coord_offset = box[0:2]
@@ -140,6 +145,7 @@ def count_people_and_draw_detections(im_ori, patch_boxes, net, meta, PERSON_LABE
                 (int(im_proc.shape[1] / 2), 120),
                 cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 255, 0), 5)
     return im_proc, num_pred
+
 
 def main():
     # Darknet
@@ -163,7 +169,7 @@ def main():
         patch_boxes = generate_patches_from_image(im_ori)
 
     im_proc, num_pred = \
-        count_people_and_draw_detections(im_ori, patch_boxes, net, meta, PERSON_LABEL)
+        detect_patches_and_draw(im_ori, patch_boxes, net, meta, PERSON_LABEL)
 
     should_show_image = False
     if should_show_image:

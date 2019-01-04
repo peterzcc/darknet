@@ -76,6 +76,14 @@ make_image = lib.make_image
 make_image.argtypes = [c_int, c_int, c_int]
 make_image.restype = IMAGE
 
+float_to_image = lib.float_to_image
+float_to_image.argtypes = [c_int, c_int, c_int, POINTER(c_float)]
+float_to_image.restype = IMAGE
+
+copy_image = lib.copy_image
+copy_image.argtypes = [IMAGE]
+copy_image.restype = IMAGE
+
 def get_network_boxes(net_ptr, w, h, thresh, hier, map_ptr, relative, num_ptr):
     """
     arg0: pointer of network
