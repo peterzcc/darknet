@@ -156,6 +156,7 @@ def main():
     if patch_boxes is None:
         patch_boxes = generate_patches_from_image(
             im_ori,
+            # default_offset=np.array([0, 0], dtype=np.int))
             default_offset=np.array([-45, 120], dtype=np.int))
 
     im_proc, num_pred = \
