@@ -193,7 +193,8 @@ def run_video_detection(args, datadir, outputdir, video_name, net, meta):
 def run_full_detections(args):
     outputdir = args.outputdir
     if os.path.exists(outputdir):
-        os.rmdir(outputdir)
+        import shutil
+        shutil.rmtree(outputdir, ignore_errors=True)
     os.mkdir(outputdir)
     datadir = args.datadir
     assert os.path.isdir(datadir)
