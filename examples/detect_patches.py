@@ -212,6 +212,9 @@ def run_full_detections(args):
         queues[i].put(video_name)
         i = (i + 1) % len(queues)
 
+    for q in queues:
+        q.put(None)
+
     for process in processes:
         process.join()
 
@@ -232,7 +235,7 @@ def detection_process(args, datadir, outputdir, gpu_id, q: mp.Queue):
         except queue.Empty:
             print("empty que")
         else:
-            print("uncaght exception")
+            print("uncaught exception")
 
 
 def main():
