@@ -125,7 +125,7 @@ def draw_detections(im_ori, results, patch_boxes, PERSON_LABEL=0):
     return im_proc, num_pred
 
 
-def detect_patches(im_ori, patch_boxes, net, meta):
+def detect_patches(im_ori, patch_boxes, net, meta, log_time=False):
     results = []
     start_time = time.time()
     for i, box in enumerate(patch_boxes):
@@ -135,9 +135,9 @@ def detect_patches(im_ori, patch_boxes, net, meta):
         result = _detector(net, meta, im_dn)
         # dn.free_image(im_dn)
         results.append(result)
-        # print('Results:\n', result)
     compute_time = time.time() - start_time
-    # print("Computation time: {}".format(compute_time))
+    if log_time:
+        print("Computation time: {}".format(compute_time))
 
     return results
 
@@ -150,7 +150,7 @@ def run_test_image(net, meta, show=0, PERSON_LABEL=0):
         patch_boxes = generate_patches_from_image(
             im_ori)
 
-    det_results = detect_patches(im_ori, patch_boxes, net, meta)
+    det_results = detect_patches(im_ori, patch_boxes, net, meta,log_time=True)
     im_proc, num_pred = draw_detections(im_ori, det_results, patch_boxes, PERSON_LABEL)
 
     should_show_image = show == 1
