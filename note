@@ -1,2 +1,4 @@
 rsync -avzhrP --exclude='.*/' --exclude='frames_*/' --exclude='*.so' --exclude='*.a'  --exclude='obj/*' --exclude='Makefile' --exclude='images/' --exclude='*/__pycache__/*' --exclude='data/*' dy2:/home/data/czeng/darknet/ ~/Documents/darknet
 rsync -avzhrP --exclude='.*/' --exclude='frames_*/' --exclude='*.so' --exclude='*.a'  --exclude='obj/*' --exclude='Makefile' --exclude='images/' --exclude='*/__pycache__/*' --exclude='data/*' ~/Documents/darknet/ dy2:/home/data/czeng/darknet
+
+python ./examples/detect_patches.py --model yolov3 --fskip 10 --test 0

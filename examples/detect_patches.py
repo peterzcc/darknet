@@ -161,10 +161,7 @@ def run_test_image(net, meta, show=0, PERSON_LABEL=0):
         cv2.imwrite("outputs/output.jpg", im_proc)
 
 
-def run_video_detection(args, datadir,outputdir, video_name, gpu_id=0):
-    dn.cuda_set_device(gpu_id)
-    net = dn.load_network("cfg/{}.cfg".format(args.model), "models/{}.weights".format(args.model), 0)
-    meta = dn.get_metadata("cfg/coco.data")
+def run_video_detection(args, datadir, outputdir, video_name, net, meta):
     PERSON_LABEL = None
     for i in range(meta.classes):
         if meta.names[i] == b"person":
@@ -220,12 +217,16 @@ def run_full_detections(args):
 
 
 def detection_process(args, datadir, outputdir, gpu_id, q: mp.Queue):
+    dn.cuda_set_device(gpu_id)
+    net = dn.load_network("cfg/{}.cfg".format(args.model), "models/{}.weights".format(args.model), 0)
+    meta = dn.get_metadata("cfg/coco.data")
     finished = False
     while not finished:
         try:
             video_name = q.get(block=True, timeout=10.0)
             if video_name is not None:
-                run_video_detection(args, datadir, outputdir, video_name, gpu_id)
+                run_video_detection(args, datadir, outputdir, video_name,
+                                    net, meta)
             else:
                 finished = True
         except queue.Empty:
